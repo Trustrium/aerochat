@@ -92,16 +92,35 @@ class _ChatScreenState extends State<ChatScreen>
     final text = _messageController.text.trim();
     if (text.isEmpty || _activeProvider == null) return;
 
+    // Create session if not exists
+    if (!_sessionCreated) {
+      final session = await _historyService.createNewSession(
+        provider: _activeProvider,
+      );
+      setState(() => _sessionCreated = true);
+      // Update title with first message
+      if (_messages.isEmpty) {
+        await _historyService.updateSessionTitle(
+          text.length > 30 ? '${text.substring(0, 30)}...' : text,
+        );
+      }
+    }
+
+    final userMessage = Message(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      content: text,
+      isUser: true,
+      timestamp: DateTime.now(),
+    );
+
     setState(() {
-      _messages.add(Message(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        content: text,
-        isUser: true,
-        timestamp: DateTime.now(),
-      ));
+      _messages.add(userMessage);
       _messageController.clear();
       _isTyping = true;
     });
+
+    // Save user message to history
+    await _historyService.addMessage(userMessage);
 
     _scrollToBottom();
 
@@ -111,15 +130,26 @@ class _ChatScreenState extends State<ChatScreen>
         messages: _messages,
       );
 
+      final aiMessage = Message(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        content: response,
+        isUser: false,
+        timestamp: DateTime.now(),
+      );
+
       setState(() {
         _isTyping = false;
-        _messages.add(Message(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          content: response,
-          isUser: false,
-          timestamp: DateTime.now(),
-        ));
+        _messages.add(aiMessage);
       });
+
+      // Save AI response to history
+      await _historyService.addMessage(aiMessage);
+
+      // Update session timestamp
+      final currentSession = await _historyService.getCurrentSession();
+      if (currentSession != null) {
+        await _historyService._db.updateSession(currentSession);
+      }
     } catch (e) {
       setState(() {
         _isTyping = false;
