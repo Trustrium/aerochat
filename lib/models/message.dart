@@ -1,3 +1,5 @@
+import 'package:antigravity_clone/config/app_config.dart';
+
 class Message {
   final String id;
   final String content;
@@ -112,6 +114,84 @@ class ChatSession {
         createdAt: DateTime.parse(json['createdAt']),
         updatedAt: DateTime.parse(json['updatedAt']),
         provider: json['provider'] != null
+            ? ProviderConfig.fromJson(json['provider'])
+            : null,
+      );
+
+  ChatSession copyWith({
+    String? id,
+    String? title,
+    List<Message>? messages,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    ProviderConfig? provider,
+  }) {
+    return ChatSession(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      messages: messages ?? this.messages,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      provider: provider ?? this.provider,
+    );
+  }
+}
+
+class ProviderConfig {
+  final AIProvider provider;
+  final String apiKey;
+  final String baseUrl;
+  final String model;
+  final bool isEnabled;
+
+  ProviderConfig({
+    required this.provider,
+    this.apiKey = '',
+    String? baseUrl,
+    String? model,
+    this.isEnabled = false,
+  })  : baseUrl = baseUrl ?? provider.defaultBaseUrl,
+        model = model ?? provider.defaultModel;
+
+  Map<String, dynamic> toJson() => {
+        'provider': provider.name,
+        'apiKey': apiKey,
+        'baseUrl': baseUrl,
+        'model': model,
+        'isEnabled': isEnabled,
+      };
+
+  factory ProviderConfig.fromJson(Map<String, dynamic> json) {
+    return ProviderConfig(
+      provider: AIProvider.values.firstWhere(
+        (p) => p.name == json['provider'],
+        orElse: () => AIProvider.openAI,
+      ),
+      apiKey: json['apiKey'] ?? '',
+      baseUrl: json['baseUrl'],
+      model: json['model'],
+      isEnabled: json['isEnabled'] ?? false,
+    );
+  }
+
+  ProviderConfig copyWith({
+    AIProvider? provider,
+    String? apiKey,
+    String? baseUrl,
+    String? model,
+    bool? isEnabled,
+  }) {
+    return ProviderConfig(
+      provider: provider ?? this.provider,
+      apiKey: apiKey ?? this.apiKey,
+      baseUrl: baseUrl ?? this.baseUrl,
+      model: model ?? this.model,
+      isEnabled: isEnabled ?? this.isEnabled,
+    );
+  }
+
+  bool get isValid => apiKey.isNotEmpty && baseUrl.isNotEmpty && model.isNotEmpty;
+}
             ? ProviderConfig.fromJson(json['provider'])
             : null,
       );
