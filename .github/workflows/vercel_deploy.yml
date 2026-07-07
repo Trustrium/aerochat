@@ -2,7 +2,7 @@ name: Deploy Flutter Web to Vercel
 
 on:
   push:
-    branches: [ master ] # Change to 'main' if your default branch is main
+    branches: [ master ]
 
 jobs:
   build-and-deploy:
@@ -18,6 +18,10 @@ jobs:
     - name: Install dependencies
       run: flutter pub get
 
+    # This line will dynamically add web support to your project inside the GitHub environment
+    - name: Enable Flutter Web Support
+      run: flutter create . --platforms web
+
     - name: Build Flutter Web
       run: flutter build web --release
 
@@ -28,4 +32,3 @@ jobs:
         vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
         vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
         working-directory: './build/web'
-
