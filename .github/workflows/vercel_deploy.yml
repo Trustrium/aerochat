@@ -1,4 +1,4 @@
-name: Build Trust Legacy
+name: Mobogravity
 
 on:
   push:
@@ -10,8 +10,8 @@ on:
 
 env:
   FLUTTER_VERSION: '3.27.4'
-  APP_ORG: 'app.trustlegacy'
-  PROJECT_NAME: 'trust_legacy'
+  APP_ORG: 'app.mobogravity'
+  PROJECT_NAME: 'aerochat'
 
 jobs:
 
@@ -284,7 +284,7 @@ jobs:
       - name: Zip web bundle
         run: |
           cd build/web
-          zip -qr ../trust-legacy-web.zip .
+          zip -qr ../mobogravity-web.zip .
 
       - name: Upload web artifact
         uses: actions/upload-artifact@v4
