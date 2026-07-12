@@ -33,6 +33,10 @@ jobs:
       - name: Generate platform folders
         run: flutter create --platforms=android,ios,web --org ${{ env.APP_ORG }} --project-name ${{ env.PROJECT_NAME }} .
 
+      # Removes the default templated widget_test.dart that tries to import 'trust_legacy'
+      - name: Remove boilerplate test file
+        run: rm -f test/widget_test.dart
+
       - name: Write .env (placeholders, analyze doesn't need real keys)
         run: |
           cat > .env <<'EOF'
@@ -50,7 +54,7 @@ jobs:
         run: flutter analyze --no-fatal-infos
 
       - name: flutter test
-        run: flutter test || echo "No tests yet — skipping"
+        run: flutter test || echo "No custom tests yet — skipping"
 
   # ------------------------------------------------------------
   # Android: APK (always) + AAB (only when signing secrets exist).
@@ -78,7 +82,6 @@ jobs:
         run: flutter create --platforms=android,ios,web --org ${{ env.APP_ORG }} --project-name ${{ env.PROJECT_NAME }} .
 
       # flutter_secure_storage 10.x needs minSdk 23; Flutter's default is 21.
-      # Also raise the intent to what modern Google security guidance expects.
       - name: Bump Android minSdk to 23
         run: |
           sed -i -E 's/minSdk\s*=\s*(flutter\.minSdkVersion|[0-9]+)/minSdk = 23/' android/app/build.gradle.kts
@@ -97,13 +100,6 @@ jobs:
       - name: flutter pub get
         run: flutter pub get
 
-      # Optional signing — enabled only when ANDROID_KEYSTORE_BASE64 is set.
-      # Generate a keystore locally with:
-      #   keytool -genkey -v -keystore upload.jks -keyalg RSA -keysize 2048 \
-      #     -validity 10000 -alias upload
-      # Then base64-encode it: base64 -w 0 upload.jks
-      # Add the b64 string as ANDROID_KEYSTORE_BASE64 secret, and the passwords
-      # as ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_PASSWORD / ANDROID_KEY_ALIAS.
       - name: Set up Android signing (if secrets present)
         id: signing
         env:
@@ -122,9 +118,7 @@ jobs:
           keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
           keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
           EOF
-          # Wire signing into android/app/build.gradle (Kotlin DSL variant).
-          # The generated build.gradle.kts does not read key.properties by
-          # default — inject a signing config block if not already present.
+          
           BUILD_GRADLE=android/app/build.gradle.kts
           if [ -f "$BUILD_GRADLE" ] && ! grep -q "key.properties" "$BUILD_GRADLE"; then
             python3 - <<'PY'
@@ -174,7 +168,7 @@ jobs:
         with:
           name: android-apk
           path: build/app/outputs/flutter-apk/app-release.apk
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30
 
       - name: Upload AAB artifact
@@ -183,13 +177,11 @@ jobs:
         with:
           name: android-aab
           path: build/app/outputs/bundle/release/app-release.aab
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30
 
   # ------------------------------------------------------------
-  # iOS: unsigned build — sufficient for archive inspection, TestFlight
-  # / App Store submission requires an Apple Developer account and
-  # certificates loaded via secrets (see docs at the end).
+  # iOS: unsigned build — sufficient for archive inspection
   # ------------------------------------------------------------
   ios:
     name: iOS (unsigned)
@@ -208,8 +200,7 @@ jobs:
       - name: Generate platform folders
         run: flutter create --platforms=android,ios,web --org ${{ env.APP_ORG }} --project-name ${{ env.PROJECT_NAME }} .
 
-      # flutter_stripe requires iOS 13.0+. Bump the Podfile deployment
-      # target before pod install so CocoaPods can resolve stripe_ios.
+      # flutter_stripe requires iOS 13.0+.
       - name: Bump iOS deployment target for Stripe
         run: |
           sed -i '' "s/^# platform :ios, .*/platform :ios, '13.0'/" ios/Podfile
@@ -242,7 +233,7 @@ jobs:
         with:
           name: ios-unsigned
           path: build/ios/iphoneos/Runner-unsigned.zip
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30
 
   # ------------------------------------------------------------
@@ -290,8 +281,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: web-bundle
-          path: build/trust-legacy-web.zip
-          if-no-files-found: warn
+          path: build/mobogravity-web.zip   # Fixed path matching the zipped output
+          if-no-files-found: error
           retention-days: 30
 
   # ------------------------------------------------------------
